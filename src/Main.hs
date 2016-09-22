@@ -11,6 +11,7 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid ((<>))
 import System.Directory (getCurrentDirectory)
 import System.Environment (getProgName)
+import System.Exit (exitWith)
 import System.IO (hPutStrLn, stderr)
 import System.FilePath ((</>), isAbsolute, takeDirectory)
 
@@ -18,7 +19,7 @@ import Cabal (findCabalFile)
 import Client (getServerStatus, serverCommand, stopServer)
 import CommandArgs
 import Daemonize (daemonize)
-import Server (startServer, createListenSocket)
+import Server (startServer)
 import Stack (findStackYaml)
 import Types (Command(..), CommandExtra(..), emptyCommandExtra)
 
@@ -87,11 +88,9 @@ doAdmin :: FilePath -> HDevTools -> CommandExtra -> IO ()
 doAdmin sock args cmdExtra
     | start_server args =
         if noDaemon args then startServer sock Nothing cmdExtra
-            else do
-                s <- createListenSocket sock
-                daemonize True $ startServer sock (Just s) cmdExtra
-    | status args = getServerStatus sock
-    | stop_server args = stopServer sock
+            else daemonize True $ startServer sock Nothing cmdExtra
+    | status args = exitWith =<< getServerStatus sock
+    | stop_server args = exitWith =<< stopServer sock
     | otherwise = do
         progName <- getProgName
         hPutStrLn stderr "You must provide a command. See:"
@@ -99,7 +98,7 @@ doAdmin sock args cmdExtra
 
 doModuleFile :: FilePath -> HDevTools -> CommandExtra -> IO ()
 doModuleFile sock args extra =
-    serverCommand sock (CmdModuleFile (module_ args)) extra
+    exitWith =<< serverCommand sock (CmdModuleFile (module_ args)) extra
 
 doFileCommand :: String -> (HDevTools -> Command) -> FilePath -> HDevTools -> CommandExtra -> IO ()
 doFileCommand cmdName cmd sock args extra
@@ -111,7 +110,7 @@ doFileCommand cmdName cmd sock args extra
         absFile <- absoluteFilePath $ file args
         let args' = args { file = absFile }
             extra' = extra { ceTemplateHaskell = not (noTH args) }
-        serverCommand sock (cmd args') extra'
+        exitWith =<< serverCommand sock (cmd args') extra'
 
 doCheck :: FilePath -> HDevTools -> CommandExtra -> IO ()
 doCheck = doFileCommand "check" $
@@ -127,4 +126,4 @@ doType = doFileCommand "type" $
 
 doFindSymbol :: FilePath -> HDevTools -> CommandExtra -> IO ()
 doFindSymbol sock args extra =
-    serverCommand sock (CmdFindSymbol (symbol args) (files args)) extra
+    exitWith =<< serverCommand sock (CmdFindSymbol (symbol args) (files args)) extra

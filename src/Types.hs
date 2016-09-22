@@ -8,6 +8,8 @@ module Types
 
 import System.Exit (ExitCode)
 
+-- TODO: Should we keep these Eq instances? Or define something on our own
+
 data CommandExtra = CommandExtra
   { cePath :: Maybe FilePath
   , ceGhcOptions :: [String]
@@ -15,7 +17,7 @@ data CommandExtra = CommandExtra
   , ceCabalOptions :: [String]
   , ceStackYamlPath :: Maybe FilePath
   , ceTemplateHaskell :: Bool
-  } deriving (Read, Show)
+  } deriving (Read, Show, Eq)
 
 emptyCommandExtra :: CommandExtra
 emptyCommandExtra = CommandExtra { cePath = Nothing
@@ -30,14 +32,14 @@ data ServerDirective
     = SrvCommand Command CommandExtra
     | SrvStatus
     | SrvExit
-    deriving (Read, Show)
+    deriving (Read, Show, Eq)
 
 data ClientDirective
     = ClientStdout String
     | ClientStderr String
     | ClientExit ExitCode
     | ClientUnexpectedError String -- ^ For unexpected errors that should not happen
-    deriving (Read, Show)
+    deriving (Read, Show, Eq)
 
 data Command
     = CmdCheck FilePath
@@ -45,4 +47,4 @@ data Command
     | CmdInfo FilePath String
     | CmdType FilePath (Int, Int)
     | CmdFindSymbol String [String]
-    deriving (Read, Show)
+    deriving (Read, Show, Eq)

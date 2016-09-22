@@ -1,4 +1,11 @@
-module Server where
+module Server
+    ( startServer
+    , clientSend
+
+-- This is for testing only:
+    , withServer
+    )
+where
 
 import Control.Exception (bracket, finally, handleJust, tryJust)
 import Control.Monad (guard)
@@ -23,17 +30,26 @@ createListenSocket socketPath = do
             removeFile socketPath
             listenOn (UnixSocket socketPath)
 
-startServer :: FilePath -> Maybe Socket -> CommandExtra -> IO ()
-startServer socketPath mbSock cmdExtra = do
+withServer :: FilePath -> Maybe Socket -> (Socket -> IO a) -> IO a
+withServer socketPath mbSock act =
     case mbSock of
-        Nothing -> bracket (createListenSocket socketPath) cleanup go
-        Just sock -> (go sock) `finally` (cleanup sock)
+      Nothing -> bracket (createListenSocket socketPath) cleanup act
+      Just sock -> act sock `finally` (cleanup sock)
     where
     cleanup :: Socket -> IO ()
     cleanup sock = do
         sClose sock
         removeSocketFile
 
+    removeSocketFile :: IO ()
+    removeSocketFile = do
+        -- Ignore possible error if socket file does not exist
+        _ <- tryJust (guard . isDoesNotExistError) $ removeFile socketPath
+        return ()
+
+startServer :: FilePath -> Maybe Socket -> CommandExtra -> IO ()
+startServer socketPath mbSock cmdExtra = withServer socketPath mbSock go
+    where
     go :: Socket -> IO ()
     go sock = do
         state <- newCommandLoopState
@@ -41,12 +57,6 @@ startServer socketPath mbSock cmdExtra = do
         configRef <- newIORef Nothing
         config <- updateConfig Nothing cmdExtra
         startCommandLoop state (clientSend currentClient) (getNextCommand currentClient sock configRef) config Nothing
-
-    removeSocketFile :: IO ()
-    removeSocketFile = do
-        -- Ignore possible error if socket file does not exist
-        _ <- tryJust (guard . isDoesNotExistError) $ removeFile socketPath
-        return ()
 
 clientSend :: IORef (Maybe Handle) -> ClientDirective -> IO ()
 clientSend currentClient clientDirective = do

@@ -46,6 +46,43 @@ source-repository head
   type:                git
   location:            git://github.com/hdevtools/hdevtools.git
 
+Test-Suite client-tests
+  type: exitcode-stdio-1.0
+  hs-source-dirs: src
+  main-is: ClientTest.hs
+  other-modules: Server,
+                 CommandLoop
+                 Types
+
+  build-depends:       base == 4.*,
+                       cmdargs,
+                       directory,
+                       filepath,
+                       ghc >= 7.2,
+                       ghc-paths,
+                       syb,
+                       network,
+                       process,
+                       time,
+                       transformers,
+                       unix,
+                       process
+
+  if impl(ghc == 7.6.*)
+    build-depends:     Cabal >= 1.16
+
+  if impl(ghc >= 7.7)
+    build-depends:     Cabal >= 1.18
+
+  if impl(ghc >= 7.9 && < 8.0)
+    build-depends:     Cabal >= 1.22,
+                       bin-package-db
+
+  if impl(ghc >= 8.0)
+    build-depends:     Cabal >= 1.24,
+                       ghc-boot >= 8.0
+
+
 executable hdevtools
   hs-source-dirs:      src
   ghc-options:         -Wall
